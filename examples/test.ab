@@ -1,0 +1,10 @@
+foo = (a, b, c, d, e) -> a + b * c - d / e;
+baz = () -> 
+    print(test);
+done
+
+if (foo(1, 2.9, 3)):
+    print(1);
+else:
+    print(2);
+done

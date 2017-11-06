@@ -1,0 +1,14 @@
+1+1;
+2 + 2;
+fool = 2 + 4 * 8;
+baz1 = 2 + 6;
+(a, b) -> a + b;
+const a = 1;
+const foo = (a, b) ->  a+ b;
+
+let b = 2;
+
+// This is a comment
+(a, b) -> 
+    a = 1;
+done;

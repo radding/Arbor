@@ -1,0 +1,12 @@
+(a, b) ->
+    a = 1;
+done;
+
+const foo = (a:int, b:int = 1) -> 
+    a = 1;
+done;
+
+
+if (1)  : 
+    a = 1;
+done;

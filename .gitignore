@@ -1,0 +1,7 @@
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+.*.sw*
+parser.out
+parsetab.py
