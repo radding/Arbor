@@ -73,9 +73,12 @@ lexer = lex.lex()
 def lex(data):
     lexer.input(data)
     # Tokenize
+    tokens = []
     while True:
         tok = lexer.token()
         if not tok: 
             break      # No more input
-        print(tok)
+        tokens.append(tok)
+        pass
+    return tokens
 
