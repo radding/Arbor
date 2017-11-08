@@ -1,7 +1,9 @@
 .vscode/
 __pycache__/
+cover/
 *.pyc
 *.pyo
 .*.sw*
 parser.out
 parsetab.py
+.coverage

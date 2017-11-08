@@ -1,5 +1,7 @@
 import ply.lex as lex
 
+class LexerError(Exception): pass
+
 reserved = {
    'if' : 'IF',
    'else' : 'ELSE',
@@ -28,9 +30,17 @@ tokens = [
     "SEMICOLON",
     "ARROW",
     "EQ",
+    "OCT",
+    "HEX",
+    'GT',
+    'LT',
+    'GTE',
+    'LTE',
 ] + list(reserved.values())
 
-t_INT = r'-?[0-9]+'
+t_INT = r'-?[1-9]+[0-9]*'
+t_HEX = r'0x[0-9a-fA-F]*'
+t_OCT = r'0[0-9]*'
 t_FLOAT = r'-?[0-9]*\.[0-9]+'
 t_PLUS = r'\+'
 t_MULTI = r'\*'
@@ -44,10 +54,15 @@ t_COMMA = r'\,'
 t_SEMICOLON = r'\;'
 t_ARROW = r'\-\>'
 t_EQ = r'='
+t_LT = r'<'
+t_GT = r'>'
+t_LTE = r'<='
+t_GTE = r'>='
 
 t_ignore = ' \t'
 def t_NAME(t):
-    r'[a-zA-Z_]+([a-zA-Z0-9_])*'
+    r'\b[a-zA-Z_]+([a-zA-Z0-9_])*\b'
+    print("this is a name:", t.value)
     t.type = reserved.get(t.value, "NAME")
     return t
 
@@ -65,8 +80,7 @@ def t_COMMENT(t):
 
 def t_error(t):
     print("Illegal character '%s'" % t.value[0])
-    t.lexer.skip(1)
-    pass
+    raise LexerError()
 
 lexer = lex.lex()
 

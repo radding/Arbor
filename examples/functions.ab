@@ -7,6 +7,6 @@ const foo = (a:int, b:int = 1) ->
 done;
 
 
-if (1)  : 
+if (1) -> 
     a = 1;
 done;
