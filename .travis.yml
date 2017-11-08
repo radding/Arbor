@@ -1,0 +1,8 @@
+language: python
+python:
+  - "3.5"
+install:
+  - pip install -r requirements.txt
+# command to run tests
+script:
+  - nosetests --rednose tests/* --with-coverage --cover-html --cover-package=src --cover-min-percentage=90
