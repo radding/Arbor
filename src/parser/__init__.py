@@ -11,7 +11,8 @@ class ParserError(Exception):
 
 def p_start(p):
     '''s : statements'''
-    p[0] = p[1]
+    p[0] = ['statements', p[1]]
+    pass
 
 def p_empty(p):
     'empty : '
@@ -51,7 +52,17 @@ def p_constant(p):
     pass
 
 def p_use(p):
-    '''expression : NAME'''
+    '''usage : NAME'''
+    p[0] = ["usage", p[1]]
+    pass
+
+def p_usage(p):
+    '''expression : usage'''
+    p[0] = p[1]
+    pass
+
+def p_declaration(p):
+    '''expression : decl'''
     p[0] = p[1]
     pass
 
@@ -63,14 +74,18 @@ def p_bin_op(p):
     p[0] = ['binop', p[1], p[2], p[3]]
 
 def p_assignment(p):
-    '''expression : NAME EQ expression
+    '''expression : usage EQ expression
                   | decl EQ expression'''
     p[0] = ["assign", p[1], p[3]]
     
 def p_decl(p):
-    '''decl : CONST NAME
-            | LET NAME'''
-    p[0] = p[2]
+    '''decl : LET NAME'''
+    p[0] = ["decl", p[2]]
+    pass
+
+def p_constDecl(p):
+    '''decl : CONST NAME'''
+    p[0] = ["declConst", p[2]]
     pass
 
 def p_commaList(p):
@@ -91,7 +106,8 @@ def p_param(p):
 def p_type(p):
     '''type : INTTYPE
             | FLOATTYPE
-            | CHARTYPE'''
+            | CHARTYPE
+            | FUNCTIONTYPE'''
     p[0] = p[1]
     pass
 
@@ -135,8 +151,13 @@ def p_blockEnter(p):
     pass
 
 def p_functionDef(p):
-    '''constant : paramlist func_block'''
+    '''function : paramlist func_block'''
     p[0] = ["func", p[1], p[2]]
+    pass
+
+def p_expressionToFunction(p):
+    '''expression : function'''
+    p[0] = p[1]
     pass
 
 def p_if(p):
@@ -145,25 +166,31 @@ def p_if(p):
     pass
 
 def p_ifblock(p):
-    '''ifblock : ifenter statements DONE'''
+    '''ifblock : ifenter statements DONE SEMICOLON'''
     p[0] = p[2]
     pass
 
 def p_ifenter(p):
-    '''ifenter : COLON'''
+    '''ifenter : ARROW'''
     pass
     
-# def p_error(p):
-#     raise ParserError(p)
+def p_error(p):
+    raise ParserError(p)
 
 parser = yacc.yacc(debug = True)
 
-def parse(data):
+def parse(data, reraise=False):
     try:
         ast = parser.parse(data)
-        print(ast)        
+        return ast      
     except ParserError as p:
-        print("Syntax error", "{0}:{1}:".format(p.p.lineno, find_column(data, p.p)), p.p.value)
+        if p.p is None:
+            print("Syntax error: EOF")
+        else:
+            print("Syntax error", "{0}:{1}:".format(p.p.lineno, find_column(data, p.p)), p.p.value)
+        if reraise:
+            raise
+        pass
 
 def find_column(input, token):
     last_cr = input.rfind('\n',0,token.lexpos)
