@@ -1,10 +1,10 @@
-foo = (a, b, c, d, e) -> a + b * c - d / e;
 baz = () -> 
-    print(test);
-done
+    z;
+done;
 
-if (foo(1, 2.9, 3)):
-    print(1);
-else:
-    print(2);
-done
+if (1) ->
+    a;
+else ->
+    b;
+done;
+

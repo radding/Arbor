@@ -11,19 +11,19 @@ class ParserTest(unittest.TestCase):
 
     def test_constants(self):
         string = '123; 1.045;'
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals(parseRes, ["statements", [["int", "123"], ["float", "1.045"]]])
         pass
 
     def test_name(self):
         string = "test;"
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals(parseRes, ["statements", [["usage", "test"]]])
         pass
     
     def test_assignment(self):
         string = "test = a;"
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals(parseRes, [
             "statements",
             [
@@ -37,7 +37,7 @@ class ParserTest(unittest.TestCase):
     
     def test_binop(self):
         string = "1 + 3;"
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals([
             "statements",
             [
@@ -49,7 +49,7 @@ class ParserTest(unittest.TestCase):
             ]
         ], parseRes)
         string = "1 - 3;"
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals([
             "statements",
             [
@@ -62,7 +62,7 @@ class ParserTest(unittest.TestCase):
         ], parseRes)
 
         string = "1 * 3;"
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals([
             "statements",
             [
@@ -75,7 +75,7 @@ class ParserTest(unittest.TestCase):
         ], parseRes)
 
         string = "1 * 3;"
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals([
             "statements",
             [
@@ -90,7 +90,7 @@ class ParserTest(unittest.TestCase):
 
     def test_decl(self):
         string = "let test;"
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals([
             "statements", 
             [
@@ -99,7 +99,7 @@ class ParserTest(unittest.TestCase):
         ], parseRes)
 
         string = "const test;"
-        parseRes = parse(string)
+        parseRes = parse(string, True)
         self.assertEquals([
             "statements", 
             [
@@ -114,7 +114,7 @@ class ParserTest(unittest.TestCase):
             a = a + 1;
             b = b + a;
         done;'''
-        parser = parse(string)
+        parser = parse(string, True)
 
         self.assertEquals([
             'statements', [
@@ -152,7 +152,7 @@ class ParserTest(unittest.TestCase):
             a = a + 1;
             b = b + a;
         done;'''
-        parser = parse(string)
+        parser = parse(string, True)
 
         self.assertEquals([
             'statements', [
@@ -191,7 +191,7 @@ class ParserTest(unittest.TestCase):
             a = a + 1;
             b = b + a;
         done;'''
-        parser = parse(string)
+        parser = parse(string, True)
         
         self.assertEquals([
             'statements', [
@@ -230,7 +230,7 @@ class ParserTest(unittest.TestCase):
             a = a + 1;
             b = b + a;
         done;'''
-        parser = parse(string)
+        parser = parse(string, True)
         
         self.assertEquals([
             'statements', [
@@ -289,3 +289,181 @@ class ParserTest(unittest.TestCase):
             ]
         ]], parser)
         pass
+
+    def test_char(self):
+        string = "'a';"
+        parser = parse(string, True)
+        self.assertEquals([
+            "statements", [
+                ['char', 'a']
+            ]
+        ], parser)
+        pass
+
+    def test_string(self):
+        string = '"abcde";'
+        parser = parse(string, True)
+        self.assertEquals([
+            "statements", [
+                ['array[char]', 'abcde']
+            ]
+        ], parser)
+        pass
+
+    def test_return(self):
+        string = "return a + b;"
+        parser = parse(string, True)
+        self.assertEquals([
+            'statements', [
+                ['return', [
+                    'binop', [
+                        'usage', 'a'
+                    ], '+', [
+                        'usage', 'b'
+                    ]
+                ]
+            ]
+        ]], parser)
+
+    def test_if_else(self):
+        string = '''
+        if(1) -> 
+            a;
+        else -> 
+            b;
+        done;'''
+        parser = parse(string, True)
+        print(parser)
+        self.assertEquals(['statements', [['ifelse', ['int', '1'], [['usage', 'a']], ['else', [['usage', 'b']]]]]], parser)
+        pass
+
+    def test_if_else_else(self):
+        string = '''
+        if(1) -> 
+            a;
+        else if(2) ->
+            b;
+        done;
+        '''
+        parser = parse(string, True)
+        self.assertEquals(['statements', [['ifelse', ['int', '1'], [['usage', 'a']], ['elseif', ['int', '2'], [['usage', 'b']]]]]], parser)
+
+        string = '''
+        if(1) -> 
+            a;
+        else if(2) ->
+            b;
+        else if(2) ->
+            c;
+            b;
+        done;
+        '''
+        parser = parse(string, True)
+        self.assertEquals(['statements', [
+            ['ifelse', ['int', '1'], [
+                ['usage', 'a']
+            ], ['elseif', ['int', '2'], [
+                ['usage', 'b']
+            ], 'elseif', ['int', '2'], [
+                ['usage', 'c'], 
+                ['usage', 'b']
+            ]
+        ]]]], parser)
+
+        string = '''
+        if(1) -> 
+            a;
+        else if(2) ->
+            b;
+        else if(2) ->
+            c;
+            b;
+        else -> 
+            z;
+            g;
+            a;
+        done;
+        '''
+        parser = parse(string, True)
+        self.assertEquals([
+            'statements', [
+                ['ifelse', ['int', '1'], [
+                    ['usage', 'a']
+                ],
+                ['elseif', ['int', '2'], [
+                    ['usage', 'b']
+                ], 'elseif', ['int', '2'], [
+                    ['usage', 'c'], 
+                    ['usage', 'b']
+                ], 'else', [
+                    ['usage', 'z'],
+                    ['usage', 'g'], 
+                    ['usage', 'a']
+                ]
+            ]
+        ]]], parser)
+        pass
+        
+    def test_comparisons(self):
+        string = '''
+        (a + 3) > (4 + 7);
+        '''
+        parser = parse(string, True)
+        print(parser)
+        self.assertEquals(['statements', [['comps', ['binop', ['usage', 'a'], '+', ['int', '3']], '>', ['binop', ['int', '4'], '+', ['int', '7']]]]], parser)\
+
+        string = '''
+        (a + 3) < (4 + 7);
+        '''
+        parser = parse(string, True)
+        print(parser)
+        self.assertEquals(['statements', [['comps', ['binop', ['usage', 'a'], '+', ['int', '3']], '<', ['binop', ['int', '4'], '+', ['int', '7']]]]], parser)
+        pass
+    
+    def test_booleanOps(self):
+        string = "a && b;"
+        parser = parse(string, True)
+        self.assertEquals(["statements", [["bool", ["usage", "a"], "&&", ["usage", "b"]]]], parser)
+
+        string = "a || b;"
+        parser = parse(string, True)
+        self.assertEquals(['statements', [['bool', ['usage', 'a'], '||', ['usage', 'b']]]], parser)
+
+        string = "!a;"
+        parser = parse(string, True)        
+        self.assertEquals(['statements', [['not', ['usage', 'a']]]], parser)
+        pass
+
+    def test_usingFunc(self):
+        string = "foo(a, b, c);"
+        parser = parse(string, True)
+        print(parser)
+        self.assertEquals(['statements', [['func use', 'foo', ['c', 'b', 'a']]]], parser)
+        string = "foo();"
+        parser = parse(string, True)
+        print(parser)
+        self.assertEquals(['statements', [['func use', 'foo', [None]]]], parser)
+        pass
+
+    @unittest.skip("Not ready yet")
+    def test_predicates(self):
+        string = """
+        (a, b) ->
+            : (a > b) -> 
+                return a;
+            done;
+            : (a < b) ->
+                return b;
+            done;
+            : (true) ->
+                return 0;
+            done;
+        done;
+        """
+        parser = parse(string, True)
+        print(parser)
+        self.assertEquals([], parser)
+        pass
+
+    
+

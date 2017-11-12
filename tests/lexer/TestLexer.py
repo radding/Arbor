@@ -77,13 +77,13 @@ class LexerTest(unittest.TestCase):
         toks = lex(integer)
         self.assertEquals(len(toks), 1)
         self.assertEquals(toks[0].type, "OCT")
-        self.assertEquals(toks[0].value, integer)
+        self.assertEquals(toks[0].value, "9")
 
         integer = '0x11AeFF'
         toks = lex(integer)
         self.assertEquals(len(toks), 1)
         self.assertEquals(toks[0].type, "HEX")
-        self.assertEquals(toks[0].value, integer)
+        self.assertEquals(toks[0].value, "1158911")
 
         integer = '-32111'
         toks = lex(integer)
@@ -141,6 +141,20 @@ class LexerTest(unittest.TestCase):
             pass
         self.assertRaises(LexerError, throwsException)
         pass
+
+    def test_char(self):
+        test = "'a'"
+        toks = lex(test)
+        self.assertEquals(toks[0].type, "CHAR")
+        self.assertEquals(toks[0].value, "a")
+        pass
+
+    def test_string(self):
+        test = '"abcdef"'
+        toks = lex(test)
+        self.assertEquals(toks[0].type, "STRING")
+        self.assertEquals(toks[0].value, "abcdef")
+        pass        
 
     def test_alltogethernow(self):
         code = '''

@@ -36,14 +36,37 @@ def p_statement(p):
     p[0] = p[1]
     pass
 
+def p_booleanOps(p):
+    '''expression : expression AND expression
+                  | expression OR expression'''
+    p[0] = ["bool", p[1], p[2], p[3]]
+    pass
+
+def p_not(p):
+    '''expression : NOT expression'''
+    p[0] = ["not", p[2]]
+    pass
+
 def p_int(p):
-    '''constant : INT'''
+    '''constant : INT
+                | HEX
+                | OCT'''
     p[0] = ['int', p[1]]
+    pass
+
+def p_char(p):
+    '''constant : CHAR'''
+    p[0] = ["char", p[1]]
     pass
 
 def p_float(p):
     '''constant : FLOAT'''
     p[0] = ['float', p[1]]
+    pass
+
+def p_string(p):
+    '''constant : STRING'''
+    p[0] = ["array[char]", p[1]]
     pass
 
 def p_constant(p):
@@ -56,6 +79,11 @@ def p_use(p):
     p[0] = ["usage", p[1]]
     pass
 
+def p_funcUsage(p):
+    '''usage : NAME LPAREN commas_param RPAREN'''
+    p[0] = ["func use", p[1], p[3]]
+    pass
+
 def p_usage(p):
     '''expression : usage'''
     p[0] = p[1]
@@ -64,6 +92,11 @@ def p_usage(p):
 def p_declaration(p):
     '''expression : decl'''
     p[0] = p[1]
+    pass
+
+def p_return(p):
+    '''expression : RETURN expression'''
+    p[0] = ["return", p[2]]
     pass
 
 def p_bin_op(p):
@@ -101,6 +134,29 @@ def p_commaList(p):
 def p_param(p):
     '''param : NAME'''
     p[0] = ['param', p[1]]
+    pass
+
+def p_paramUse(p):
+    '''paramuse : NAME
+                | constant
+                | empty'''
+    p[0] = p[1]
+    pass
+
+def p_paramList(p):
+    '''commas_param : paramuse
+                    | paramuse COMMA commas_param'''
+    if (len(p) >= 4):
+        p[0] = p[3] + [p[1], ]
+        pass
+    else:
+        p[0] = [p[1], ]
+        pass
+    pass
+
+def p_expressionParenth(p):
+    '''expression : LPAREN expression RPAREN'''
+    p[0] = p[2]
     pass
 
 def p_type(p):
@@ -141,10 +197,15 @@ def p_block(p):
     p[0] = ["block", p[2]]
     pass
 
-# def p_blockToExpression(p):
-#     '''statement : block'''
-#     p[0] = p[1]
-#     pass
+def p_comps(p):
+    '''expression : expression EQCOMP expression
+                  | expression LT expression
+                  | expression LTE expression
+                  | expression GT expression
+                  | expression GTE expression
+                  | expression NEQ expression''' 
+    p[0] = ["comps", p[1], p[2], p[3]]
+    pass
 
 def p_blockEnter(p):
     '''blockEnter : ARROW'''
@@ -165,6 +226,28 @@ def p_if(p):
     p[0] = ["if", p[3], p[5]]
     pass
 
+def p_if_else(p):
+    '''statement : IF LPAREN expression RPAREN ifenter statements elseif'''
+    p[0] = ["ifelse", p[3], p[6], p[7]]
+    pass
+
+
+def p_elseif(p):
+    '''elseif : ELSE IF LPAREN expression RPAREN ifblock'''
+    p[0] = ["elseif", p[4], p[6]]
+    pass
+
+def p_elseifelse(p):
+    '''elseif : ELSE ifblock'''
+    p[0] = ["else", p[2]]
+    pass
+
+def p_elseifelseif(p):
+    '''elseif : ELSE IF LPAREN expression RPAREN ifenter statements elseif'''
+    p[0] = ["elseif", p[4], p[7]] + p[8]
+    pass
+
+
 def p_ifblock(p):
     '''ifblock : ifenter statements DONE SEMICOLON'''
     p[0] = p[2]
@@ -173,7 +256,7 @@ def p_ifblock(p):
 def p_ifenter(p):
     '''ifenter : ARROW'''
     pass
-    
+
 def p_error(p):
     raise ParserError(p)
 
