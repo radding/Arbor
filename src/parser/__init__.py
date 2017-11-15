@@ -1,8 +1,31 @@
 import ply.yacc as yacc
 
 from src.lexer import tokens
+from src.ast import (
+    IntNode,
+    AddNode, 
+    BaseNode,
+    FunctionDefNode,
+    FileNode,
+    Context,
+    AssignNode,
+    ParamDefNode,
+    UsageNode,
+    DeclNode,
+    ReturnNode,
+    FloatNode,
+    MinusNode,
+    MultNode,
+    DivNode,
+)
 
 start = 's'
+
+typesToLLVM = {
+    "int": "i32",
+    "char":"i8",
+    "float": "double",
+}
 
 class ParserError(Exception):
     def __init__(self, p):
@@ -11,7 +34,8 @@ class ParserError(Exception):
 
 def p_start(p):
     '''s : statements'''
-    p[0] = ['statements', p[1]]
+    Context.instance().pushScope()
+    p[0] = FileNode(*p[1].children)
     pass
 
 def p_empty(p):
@@ -22,13 +46,15 @@ def p_statements(p):
     '''statements : statements statement
                    | empty'''
     if (p[1] is not None):
-        p[0] = p[1] + [p[2], ]
+        child = p[1].children + (p[2], )
         pass
     elif (len(p) >= 3):
-        p[0] = [p[2], ]
+        child = [p[2], ]
     else:
-        p[0] = []
+        child = []
         pass
+    p[0] = BaseNode(*child)
+    pass
 
 def p_statement(p):
     '''statement : expression SEMICOLON
@@ -51,7 +77,7 @@ def p_int(p):
     '''constant : INT
                 | HEX
                 | OCT'''
-    p[0] = ['int', p[1]]
+    p[0] = IntNode(p[1])
     pass
 
 def p_char(p):
@@ -61,7 +87,7 @@ def p_char(p):
 
 def p_float(p):
     '''constant : FLOAT'''
-    p[0] = ['float', p[1]]
+    p[0] = FloatNode(p[1])
     pass
 
 def p_string(p):
@@ -76,7 +102,7 @@ def p_constant(p):
 
 def p_use(p):
     '''usage : NAME'''
-    p[0] = ["usage", p[1]]
+    p[0] = UsageNode(p[1])
     pass
 
 def p_funcUsage(p):
@@ -96,7 +122,7 @@ def p_declaration(p):
 
 def p_return(p):
     '''expression : RETURN expression'''
-    p[0] = ["return", p[2]]
+    p[0] = ReturnNode(p[2])
     pass
 
 def p_bin_op(p):
@@ -104,21 +130,36 @@ def p_bin_op(p):
                   | expression SUB expression
                   | expression MULTI expression
                   | expression DIV expression'''
-    p[0] = ['binop', p[1], p[2], p[3]]
+    if (p[2] == '+'):
+        p[0] = AddNode(p[1], p[3])
+        pass
+    elif(p[2] == '-'):
+        p[0] = MinusNode(p[1], p[3])
+        pass
+    elif (p[2] == '*'):
+        p[0] = MultNode(p[1], p[3])
+        pass
+    elif p[0] == '/':
+        p[0] = DivNode(p[1], p[3])
+        pass
+    else:
+        p[0] = ['binop', p[1], p[2], p[3]]
+        pass
 
 def p_assignment(p):
     '''expression : usage EQ expression
                   | decl EQ expression'''
-    p[0] = ["assign", p[1], p[3]]
+    p[0] = AssignNode(p[1], p[3])
+    pass
     
 def p_decl(p):
     '''decl : LET NAME'''
-    p[0] = ["decl", p[2]]
+    p[0] = DeclNode(p[2])
     pass
 
 def p_constDecl(p):
     '''decl : CONST NAME'''
-    p[0] = ["declConst", p[2]]
+    p[0] = DeclNode(p[2], True)
     pass
 
 def p_commaList(p):
@@ -133,7 +174,7 @@ def p_commaList(p):
 
 def p_param(p):
     '''param : NAME'''
-    p[0] = ['param', p[1]]
+    p[0] = ParamDefNode(p[1])
     pass
 
 def p_paramUse(p):
@@ -164,12 +205,13 @@ def p_type(p):
             | FLOATTYPE
             | CHARTYPE
             | FUNCTIONTYPE'''
-    p[0] = p[1]
+    p[0] = typesToLLVM.get(p[1], "i32*")
     pass
 
 def p_paramTypeDef(p):
     '''paramtype : NAME COLON type'''
-    p[0] = ['paramtype', p[1], p[3]]
+    p[0] = ParamDefNode(p[1], p[2])
+    pass
 
 def p_paramType(p):
     '''param : paramtype'''
@@ -184,9 +226,10 @@ def p_defaultParam(p):
 
 def p_list(p):
     '''paramlist : LPAREN commas RPAREN
+                 | LPAREN param RPAREN
                  | LPAREN RPAREN'''
     if (p[2] != ')'):
-        p[0] = ["params", p[2], ]
+        p[0] = p[2]
         pass
     else:
         p[0] = None
@@ -194,7 +237,7 @@ def p_list(p):
 
 def p_block(p):
     '''func_block : blockEnter statements DONE'''
-    p[0] = ["block", p[2]]
+    p[0] = p[2]
     pass
 
 def p_comps(p):
@@ -209,11 +252,13 @@ def p_comps(p):
 
 def p_blockEnter(p):
     '''blockEnter : ARROW'''
+    Context.instance().pushScope()
     pass
 
 def p_functionDef(p):
     '''function : paramlist func_block'''
-    p[0] = ["func", p[1], p[2]]
+    Context.instance().popScope()    
+    p[0] = FunctionDefNode(p[1], p[2])
     pass
 
 def p_expressionToFunction(p):

@@ -7,3 +7,6 @@ cover/
 parser.out
 parsetab.py
 .coverage
+*.ll
+*.o
+*.s

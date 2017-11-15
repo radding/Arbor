@@ -1,8 +1,54 @@
 #!/usr/bin/env python
 from src import lex
 from src import parse
-import sys
 
-with open(sys.argv[1]) as fi:
-    parse(fi.read())
+import argparse
+import sys
+import subprocess
+
+args = argparse.ArgumentParser("Compile Arbor Code")
+
+args.add_argument('file', help="The .ab file to compile")
+args.add_argument('--out', '-o', default='out', help="The file to output")
+args.add_argument('--link', '-l', nargs="+", default=[], help='the arbor files to link')
+args.add_argument('--target', '-t', default="wasm", help='The output target')
+args.add_argument('--emit-ir', default=False, help='emits the LLVM IR', action="store_true")
+
+args = args.parse_args()
+
+with open(args.file) as fi:
+    ast = parse(fi.read())
+    pass
+compiledCode = ast.compile()
+ir = "\n".join(compiledCode)
+
+if args.emit_ir:
+    print (ir)
+
+llcArgs = []
+exe = args.target == 'exe'
+
+format = ""
+if args.target == "x86":
+    format = "s"
+    llcArgs.append("--x86-asm-syntax=intel")
+    pass
+elif args.target == 'obj' or exe:
+    format = "o"
+    llcArgs.append("-filetype=obj")
+    pass
+    
+echo_ir = subprocess.Popen(['echo', ir], stdout=subprocess.PIPE)
+llc = subprocess.Popen(["llc"] + llcArgs, stdin=echo_ir.stdout, stdout=subprocess.PIPE)
+
+echo_ir.stdout.close()
+out, err = llc.communicate()
+fileName = "{}.{}".format(args.out, format)
+
+with open(fileName, 'wb') as fi:
+    fi.write(out)
+    pass
+
+if exe:
+    subprocess.call(["gcc", fileName, "-o", args.out])
     pass
