@@ -1,0 +1,5 @@
+@module main
+
+@use math.IntAdd
+
+math.IntAdd(1,2);

@@ -17,6 +17,8 @@ from src.ast import (
     MinusNode,
     MultNode,
     DivNode,
+    ModuleUseNode,
+    FuncCallNode,
 )
 
 start = 's'
@@ -33,9 +35,14 @@ class ParserError(Exception):
         pass
 
 def p_start(p):
-    '''s : statements'''
+    '''s : MODULE NAME statements
+         | statements'''
     Context.instance().pushScope()
-    p[0] = FileNode(*p[1].children)
+    if len(p) > 2:
+        p[0] = FileNode(p[2], *p[3].children)
+        pass
+    else: 
+        p[0] = FileNode(None, *p[1].children)
     pass
 
 def p_empty(p):
@@ -60,6 +67,11 @@ def p_statement(p):
     '''statement : expression SEMICOLON
                  | empty'''
     p[0] = p[1]
+    pass
+
+def p_useModule(p):
+    '''statement : USE EXTERNNAME'''
+    p[0] = ModuleUseNode(p[2])
     pass
 
 def p_booleanOps(p):
@@ -106,8 +118,9 @@ def p_use(p):
     pass
 
 def p_funcUsage(p):
-    '''usage : NAME LPAREN commas_param RPAREN'''
-    p[0] = ["func use", p[1], p[3]]
+    '''usage : NAME LPAREN commas_param RPAREN
+             | EXTERNNAME LPAREN commas_param RPAREN'''
+    p[0] = FuncCallNode(p[1], p[3])
     pass
 
 def p_usage(p):
@@ -139,7 +152,7 @@ def p_bin_op(p):
     elif (p[2] == '*'):
         p[0] = MultNode(p[1], p[3])
         pass
-    elif p[0] == '/':
+    elif p[2] == '/':
         p[0] = DivNode(p[1], p[3])
         pass
     else:
@@ -148,18 +161,34 @@ def p_bin_op(p):
 
 def p_assignment(p):
     '''expression : usage EQ expression
-                  | decl EQ expression'''
+                  | decl EQ expression
+                  | decl_notypes EQ expression'''
     p[0] = AssignNode(p[1], p[3])
+    pass
+
+def p_declTypes(p):
+    '''decl_types : NAME COLON type'''
+    p[0] = [p[1], p[3]]
     pass
     
 def p_decl(p):
-    '''decl : LET NAME'''
+    '''decl : LET decl_types'''
+    p[0] = DeclNode(p[2][0], type=p[2][1])
+    pass
+
+def p_declNoType(p):
+    '''decl_notypes : LET NAME'''
     p[0] = DeclNode(p[2])
     pass
 
-def p_constDecl(p):
-    '''decl : CONST NAME'''
+def p_declNoConstType(p):
+    '''decl_notypes : CONST NAME'''
     p[0] = DeclNode(p[2], True)
+    pass
+
+def p_constDecl(p):
+    '''decl : CONST decl_types'''
+    p[0] = DeclNode(p[1][0], True, p[1][1])
     pass
 
 def p_commaList(p):
@@ -172,14 +201,10 @@ def p_commaList(p):
         p[0] = [p[1], ]
         pass
 
-def p_param(p):
-    '''param : NAME'''
-    p[0] = ParamDefNode(p[1])
-    pass
-
 def p_paramUse(p):
     '''paramuse : NAME
                 | constant
+                | usage
                 | empty'''
     p[0] = p[1]
     pass
@@ -209,8 +234,8 @@ def p_type(p):
     pass
 
 def p_paramTypeDef(p):
-    '''paramtype : NAME COLON type'''
-    p[0] = ParamDefNode(p[1], p[2])
+    '''paramtype : NAME COLON type'''    
+    p[0] = ParamDefNode(p[1], p[3])
     pass
 
 def p_paramType(p):
@@ -257,8 +282,8 @@ def p_blockEnter(p):
 
 def p_functionDef(p):
     '''function : paramlist func_block'''
-    Context.instance().popScope()    
     p[0] = FunctionDefNode(p[1], p[2])
+    Context.instance().popScope()        
     pass
 
 def p_expressionToFunction(p):

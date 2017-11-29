@@ -26,7 +26,7 @@ def getUniqueGlobalName():
     return next(uniqueGlobalName)
 
 
-def registers():
+def getRegisters():
     reg = 1
     while True:
         yield reg
@@ -34,10 +34,18 @@ def registers():
         pass
     pass
 
-registers = registers()
+registers = getRegisters()
+
+def resetRegs():
+    global registers
+    registers = getRegisters()
+    
+instance.onPush(resetRegs)
 
 def getNextRegister():
     return next(registers)
+
+moduleMap = {}
 
 class BaseNode:
     def __init__(self, *args):
@@ -49,20 +57,32 @@ class BaseNode:
             i.compile(compiler)
             pass
         pass
-               
     pass
 
 class FileNode(BaseNode):
+    def __init__(self, name, *args):
+        super().__init__(*args)
+        self.name = name
+        instance.addGlobal('__ModuleName', name)
+        pass
+
     def compile(self, compiler=None):
         if compiler is None:
             compiler = collections.deque()
             pass
-        compiler.append("define i32 @main() {")
-        instance.pushScope()
+        elif self.name is not None:
+            compiler.name = self.name
+            pass
+        if compiler.moduleName == 'main':
+            compiler.append("define i32 @main() {")
+            instance.pushScope()
+            pass
         super().compile(compiler)
-        compiler.append("ret i32 0;")   
-        instance.popScope()     
-        compiler.append("}") 
+        if compiler.moduleName == 'main':
+            compiler.append("ret i32 0;")   
+            instance.popScope()     
+            compiler.append("}")
+            pass
         return compiler
         
 
@@ -84,7 +104,7 @@ class IntNode(ConstantNode):
 
 class FloatNode(ConstantNode):
     tp = "double"
-    llvmTp = "double"
+    llvmTp = "f64"
     pass
 
 class CharNode(ConstantNode):
@@ -111,7 +131,7 @@ class BinOpNode(BaseNode):
         right, llvmTpRight = self.right.compile(compiler)
         if llvmTpLeft != llvmTpRight:
             raise InvalidTypeException()
-        register = "%{}".format(getNextRegister())
+        register = "%{}".format(getUniqueGlobalName())
         compiler.append("{} = {} {} {}, {}".format(register, self.llvmInstruction, llvmTpLeft, left, right))
         return register, llvmTpLeft
 
@@ -135,6 +155,10 @@ class DivNode(BinOpNode):
     llvmInstruction = "sdiv"
     pass
 
+class ModuleUseNode(BaseNode):
+    def __init__(self, name):
+        self.name = name
+        pass
 
 class FunctionDefNode(BaseNode):
     def __init__(self, params, statements):
@@ -150,13 +174,14 @@ class FunctionDefNode(BaseNode):
             params = ""
             pass
         else:
-            params = []
+            params = compiler.clone()
             for param in self.params:
                 param.compile(params)
                 pass
             params = ",".join(params)
             pass
-        defineFunc = "define fastcc i32 @{}({}) {{".format(name, params)
+        compiler.addToModuleMap(name, {'params': [i.type for i in self.params]})
+        defineFunc = "define fastcc i32 @{}.{}({}) {{".format(compiler.moduleName, name, params)
         statements = []
         self.statements.compile(statements)
         statemtents = "\n".join(statements)
@@ -164,12 +189,14 @@ class FunctionDefNode(BaseNode):
         compiler.appendleft("ret i32 0;")
         compiler.appendleft(statemtents)
         compiler.appendleft(defineFunc)
-        return '@{}'.format(name), 'i32'
+        return '@{}'.format(name), 'function'
 
 class ParamDefNode(BaseNode):
     def __init__(self, name, type='i32*'):
         self.name = name
         self.type = type
+        details = {"constant": False, "location": name, "type": type, "isParam": True}
+        instance.addScoped(name, details)
         pass
 
     def compile(self, compiler):
@@ -182,6 +209,7 @@ class AssignNode(BaseNode):
     def __init__(self, name, assign):
         self.name = name
         self.assign = assign
+        pass
 
     def compile(self, compiler):
         if isinstance(self.assign, FunctionDefNode):
@@ -205,12 +233,12 @@ class AssignNode(BaseNode):
     pass
 
 class DeclNode(BaseNode):
-    def __init__(self, name, constant=False):
+    def __init__(self, name, constant=False, type="i32"):
         if instance.resolve(name, True) is not None:
             raise RedefinedException(name)
         self.name = name
         regName = "%{}".format(getUniqueGlobalName())
-        self.details = {"constant": constant, "location": regName, "type": "i32"}
+        self.details = {"constant": constant, "location": regName, "type": type}
         instance.addScoped(name, self.details)
         pass
 
@@ -218,7 +246,6 @@ class DeclNode(BaseNode):
         for key, value in kwargs.items():
             self.details[key] = value
             pass
-        instance.addScoped(self.name, self.details)        
         pass
 
     def compile(self, compiler):
@@ -227,14 +254,16 @@ class DeclNode(BaseNode):
 
 class UsageNode(BaseNode):
     def __init__(self, name):
-        if Context.instance().resolve(name) is None:
-            raise NotDefinedException(name)
         self.name = name
         self.details = instance.resolve(name)
+        if self.details is None:
+            raise NotDefinedException(self.name)
         pass
 
     def compile(self, compiler):
-        reg = "%{}".format(getNextRegister())
+        if self.details.get("isParam", False):
+            return "%{}".format(self.name), self.details["type"]
+        reg = "%{}".format(getUniqueGlobalName())
         compiler.append("{} = load {}, i32* {}".format(reg, self.details['type'], self.details['location']))
         return reg, self.details['type']
 
@@ -248,4 +277,20 @@ class ReturnNode(BaseNode):
         compiler.append("ret {} {}".format(type, register))
         pass
 
+class FuncCallNode(BaseNode):
+    def __init__(self, name, params):
+        self.name = name
+        self.params = params
+        pass
 
+    def compile(self, compiler):
+        parmWTypes = []
+        for i in self.params:
+            reg, type = i.compile(compiler)
+            parmWTypes.append(" ".join([type, reg]))
+            pass
+        params = ", ".join(parmWTypes)
+        reg = "%{}".format(getUniqueGlobalName())
+        callStatements = "{} = call i32 @{}.{}({})".format(reg, compiler.moduleName, self.name, params)
+        compiler.append(callStatements)
+        return reg, "i32"

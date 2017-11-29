@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from src import lex
 from src import parse
+from src.ast.CompilerVisitor import CompileVisitor
 
 import argparse
 import sys
@@ -19,21 +20,22 @@ args = args.parse_args()
 with open(args.file) as fi:
     ast = parse(fi.read())
     pass
-compiledCode = ast.compile()
+compiledCode = ast.compile(CompileVisitor(fileName=args.file))
+print(compiledCode.moduleMap)
 ir = "\n".join(compiledCode)
 
 if args.emit_ir:
     print (ir)
 
 llcArgs = []
-exe = args.target == 'exe'
+doesTargetExe = args.target == 'exe'
 
-format = ""
+format = "wasm"
 if args.target == "x86":
     format = "s"
     llcArgs.append("--x86-asm-syntax=intel")
     pass
-elif args.target == 'obj' or exe:
+elif args.target == 'obj' or doesTargetExe:
     format = "o"
     llcArgs.append("-filetype=obj")
     pass
@@ -49,6 +51,6 @@ with open(fileName, 'wb') as fi:
     fi.write(out)
     pass
 
-if exe:
+if doesTargetExe:
     subprocess.call(["gcc", fileName, "-o", args.out])
     pass

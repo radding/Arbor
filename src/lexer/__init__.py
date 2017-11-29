@@ -42,7 +42,10 @@ tokens = [
     'NEQ',
     'AND',
     'OR',
-    'NOT'
+    'NOT',
+    'MODULE',
+    'USE',
+    'EXTERNNAME'
 ] + list(reserved.values())
 
 t_INT = r'-?[1-9]+[0-9]*'
@@ -67,6 +70,9 @@ t_GTE = r'>='
 t_AND = r'&&'
 t_OR = r'\|\|'
 t_NOT = r'\!'
+t_MODULE = '@module'
+t_USE = '@use'
+t_EXTERNNAME = '\b[a-zA-Z_]+([a-zA-Z0-9_])*\.[a-zA-Z_]+([a-zA-Z0-9_])*\b'
 
 t_ignore = ' \t'
 

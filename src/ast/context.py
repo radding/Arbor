@@ -6,7 +6,7 @@ class Context:
         if initWithScope:
            self.context["scope"].append(Context(False))
            pass
-        pass
+        self._onPush = []
         pass
     
     @classmethod
@@ -15,6 +15,9 @@ class Context:
             cls._instance = cls()
             pass
         return cls._instance
+
+    def onPush(self, function):
+        self._onPush.append(function)
 
     def addGlobal(self, name, value):
         self.context[name] = value
@@ -32,6 +35,9 @@ class Context:
 
     def pushScope(self):
         self.context["scope"].append(Context())
+        for i in self._onPush:
+            i()
+            pass
         pass
 
     def popScope(self):

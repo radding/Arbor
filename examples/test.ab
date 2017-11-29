@@ -1,10 +1,2 @@
-baz = () -> 
-    z;
-done;
-
-if (1) ->
-    a;
-else ->
-    b;
-done;
+@module test
 
